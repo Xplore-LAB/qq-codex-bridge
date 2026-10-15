@@ -1,0 +1,6 @@
+.github/
+src/
+tests/
+generated/
+node_modules/
+*.tgz

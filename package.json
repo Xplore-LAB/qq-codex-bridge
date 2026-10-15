@@ -1,0 +1,60 @@
+{
+  "dependencies": {
+    "@tencent-connect/qqbot-connector": "1.2.0",
+    "@tencent-connect/qqbot-nodejs": "1.0.4",
+    "better-sqlite3": "13.0.3",
+    "pino": "10.4.0",
+    "qrcode": "1.5.4",
+    "ws": "8.22.0",
+    "zod": "4.6.7"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/tests/unit/*.test.js dist/tests/integration/*.test.js",
+    "init": "node dist/src/main.js init",
+    "check": "node dist/src/main.js check",
+    "offline": "node dist/src/main.js offline",
+    "probe": "node dist/src/main.js probe",
+    "auth-check": "node dist/src/main.js auth-check",
+    "bind": "node dist/src/main.js bind",
+    "start": "node dist/src/main.js start",
+    "prepare": "npm run build",
+    "cli": "node bin/qq-codex-bridge.mjs"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "9.6.0",
+    "@types/node": "26.6.5",
+    "@types/qrcode": "1.5.6",
+    "@types/ws": "8.18.2",
+    "typescript": "7.0.2"
+  },
+  "name": "qq-codex-bridge",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "description": "A private QQ messaging bridge for an existing Codex session, with durable tasks and multimedia delivery.",
+  "bin": {
+    "qq-codex-bridge": "bin/qq-codex-bridge.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Xplore-LAB/qq-codex-bridge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Xplore-LAB/qq-codex-bridge/issues"
+  },
+  "homepage": "https://github.com/Xplore-LAB/qq-codex-bridge#readme",
+  "license": "UNLICENSED",
+  "files": [
+    "bin/",
+    "dist/src/",
+    "dist/generated/",
+    "README.md",
+    "docs/",
+    "config.example.json",
+    "THIRD_PARTY_NOTICES.md"
+  ]
+}

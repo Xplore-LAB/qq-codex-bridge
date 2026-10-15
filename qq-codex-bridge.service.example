@@ -1,0 +1,18 @@
+[Unit]
+Description=QQ to Codex messaging bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Replace this path with the result of: command -v qq-codex-bridge
+ExecStart=/absolute/path/to/qq-codex-bridge start
+EnvironmentFile=-%h/.config/qq-codex-bridge/environment
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=20
+UMask=0077
+MemoryMax=1G
+
+[Install]
+WantedBy=default.target

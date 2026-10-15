@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "accountId": "YOUR_APP_ID",
+  "owner": "PAIRED_USER_OPENID",
+  "threadId": "EXISTING_CODEX_THREAD_ID",
+  "backend": "app-server",
+  "streaming": { "enabled": true, "native": true, "intervalMs": 3000 },
+  "voice": { "enabled": false },
+  "limits": { "attachments": 8, "fileBytes": 52428800, "queue": 20, "taskTimeoutMs": 3600000 },
+  "video": { "extractFrames": true, "maxDurationSec": 600, "frames": 4 },
+  "approvals": { "enabled": true, "ttlMs": 300000 }
+}
