@@ -26,4 +26,4 @@ Do not commit runtime configuration, credentials, databases, QR images, media, o
 
 ## Licensing
 
-Original code is currently all rights reserved; see [LICENSE](LICENSE). No general open-source license or contributor license agreement is implied by this guide. Licensing questions should be resolved with the maintainer before substantial contributions.
+Original code is licensed under the [MIT License](LICENSE). By submitting a contribution, you agree to license it under the same terms. Third-party components retain their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

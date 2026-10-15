@@ -47,7 +47,7 @@
     "url": "https://github.com/Xplore-LAB/qq-codex-bridge/issues"
   },
   "homepage": "https://github.com/Xplore-LAB/qq-codex-bridge#readme",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "files": [
     "bin/",
     "dist/src/",

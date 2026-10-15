@@ -3,6 +3,7 @@
 [简体中文](README.md) · **English**
 
 [![Tests](https://github.com/Xplore-LAB/qq-codex-bridge/actions/workflows/test.yml/badge.svg)](https://github.com/Xplore-LAB/qq-codex-bridge/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js 24](https://img.shields.io/badge/Node.js-24-339933?logo=nodedotjs&logoColor=white)](package.json)
 
 Use QQ private messages to work with an existing local Codex session and exchange images, documents, audio, and video.
@@ -22,7 +23,7 @@ npm link
 qq-codex-bridge --help
 ```
 
-If the repository is private, GitHub authentication is required. Install from source; this package is not published to npm.
+Install from source; this package is not published to npm.
 
 ## Configure an existing session
 
@@ -135,4 +136,4 @@ The generated Codex protocol types were produced with Codex CLI `0.162.1`. The U
 
 See [contributing](CONTRIBUTING.md), [troubleshooting](docs/troubleshooting.md), and [security reporting](SECURITY.md). If this tool helps you, a GitHub star helps others discover it.
 
-Original code is currently all rights reserved; no open-source license is granted. See [LICENSE](LICENSE) and [third-party notices](THIRD_PARTY_NOTICES.md). This is an independent project, not an official Tencent or OpenAI product.
+Original code is available under the [MIT License](LICENSE). Third-party components retain their own terms; see [third-party notices](THIRD_PARTY_NOTICES.md). This is an independent project, not an official Tencent or OpenAI product.

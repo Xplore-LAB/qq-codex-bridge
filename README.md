@@ -10,6 +10,7 @@
 
 [![Tests](https://github.com/Xplore-LAB/qq-codex-bridge/actions/workflows/test.yml/badge.svg)](https://github.com/Xplore-LAB/qq-codex-bridge/actions/workflows/test.yml)
 [![Node.js 24](https://img.shields.io/badge/Node.js-24-339933?logo=nodedotjs&logoColor=white)](package.json)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](src)
 
 [快速开始](#快速开始) · [常用命令](#常用命令) · [排障](docs/troubleshooting.md) · [反馈问题](https://github.com/Xplore-LAB/qq-codex-bridge/issues)
@@ -54,7 +55,7 @@ npm link
 qq-codex-bridge --help
 ```
 
-`npm ci` 会编译项目。当前未发布 npm 包，请使用上述源码安装方式；私有仓库需要 GitHub 访问权限。
+`npm ci` 会编译项目。当前未发布 npm 包，请使用上述源码安装方式。
 
 ### 3. 连接现有会话
 
@@ -150,4 +151,4 @@ npm pack --dry-run
 
 当前面向个人自托管场景：一个机器人、一个配对用户、QQ 私聊。本地执行沿用原会话的审批和沙箱策略。主后端依赖版本敏感的 Codex 控制接口，升级后应重新运行 `probe`；跨服务不承诺严格的恰好一次执行或交付。
 
-原创代码目前保留所有权利，尚未授予开源使用许可，见 [LICENSE](LICENSE)。第三方组件及生成协议类型遵循各自条款，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。本项目独立维护，与腾讯、OpenAI 或 OpenClaw 无隶属关系。
+原创代码采用 [MIT License](LICENSE)，欢迎使用、修改与贡献。第三方组件及生成协议类型遵循各自条款，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。本项目独立维护，与腾讯、OpenAI 或 OpenClaw 无隶属关系。
