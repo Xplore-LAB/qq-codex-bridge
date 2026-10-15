@@ -6,15 +6,16 @@ import {errorMessage,object,string,type Agent,type AgentEvent,type Attachment,ty
 import {MediaStore,splitReply} from '../media/store.js';
 import {MediaProcessor} from '../media/process.js';
 import {ApprovalService} from './approvals.js';
+import {Questions} from './questions.js';
 import {ReplyProgress} from './reply-stream.js';
 import {log} from '../observability/logger.js';
 export interface MediaPort {receive(items:Incoming['attachments'],taskId:string):Promise<Attachment[]>;stage(path:string):Promise<string>}
 export interface ProcessingPort {prepare(file:Attachment):Promise<Attachment>;synthesize(text:string):Promise<string>;outboundVoice(path:string):Promise<string>}
 const active=['received','preparing','queued','submitting','running','waiting_approval'] as const;
 export class Runner {
- readonly approvals:ApprovalService;private progress:ReplyProgress;private busy=false;private eventChain=Promise.resolve();private early:AgentEvent[]=[];private lastPoll=0;private resumed=new Set<string>();
+ readonly questions:Questions;readonly approvals:ApprovalService;private progress:ReplyProgress;private busy=false;private eventChain=Promise.resolve();private early:AgentEvent[]=[];private lastPoll=0;private resumed=new Set<string>();
  constructor(readonly config:Config,readonly store:Store,readonly agent:Agent,readonly channel:Channel,private media:MediaPort=new MediaStore(config),private processing:ProcessingPort=new MediaProcessor(config)){
-  this.approvals=new ApprovalService(config,store,agent,channel);this.progress=new ReplyProgress(config,channel);
+  this.questions=new Questions(store,agent,channel);this.approvals=new ApprovalService(config,store,agent,channel);this.progress=new ReplyProgress(config,channel);
   agent.onEvent(event=>{this.eventChain=this.eventChain.then(()=>this.onEvent(event)).catch(e=>log.error({event:'agent_event_failed',reason:errorMessage(e)}));});
  }
  async accept(message:Incoming){
@@ -65,6 +66,7 @@ export class Runner {
     }
     const thread=await this.agent.readThread(task.threadId);if(object(thread.status).type==='active')return;
     if(!this.resumed.has(task.threadId)){await this.agent.resume(task.threadId);this.resumed.add(task.threadId);}
+    const choice=this.store.get<{model:string;effort?:Task['effort']}>('model:'+task.threadId);if(choice){task.model=choice.model;task.effort=choice.effort;}
     task.status='submitting';this.store.saveTask(task);await this.progress.start(task);task.turnId=await this.agent.submit(task);task.status='running';this.store.saveTask(task);
     const events=this.early.splice(0);for(const event of events)await this.onEvent(event);
    }catch(e){this.progress.cancel(task.id);task.error=errorMessage(e);task.status=task.status==='submitting'?'uncertain':'failed';this.store.saveTask(task);await this.notify(task,'任务未完成：'+task.error);}
@@ -76,7 +78,7 @@ export class Runner {
   const p=event.params,threadId=string(p.threadId),turnId=string(p.turnId)||string(object(p.turn).id);
   const task=this.store.tasks(['running','waiting_approval','submitting']).find(t=>t.threadId===threadId&&t.turnId===turnId);
   if(!task){if(this.store.tasks(['submitting']).some(t=>t.threadId===threadId)&&this.early.length<200)this.early.push(event);return;}
-  if(event.id!==undefined){await this.approvals.receive(event,task);return;}
+  if(event.id!==undefined){if(await this.questions.receive(event,task))return;await this.approvals.receive(event,task);return;}
   if(event.method==='item/agentMessage/delta')await this.progress.delta(task,string(p.itemId),string(p.delta));
   if(event.method==='item/completed'){const item=object(p.item);if(item.type==='agentMessage'&&item.phase==='final_answer'){task.reply=string(item.text);this.store.saveTask(task);}}
   if(event.method==='turn/completed')await this.finish(task,object(p.turn));

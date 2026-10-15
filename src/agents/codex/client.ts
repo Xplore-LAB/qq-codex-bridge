@@ -8,7 +8,7 @@ import type {ThreadResumeParams} from '../../../generated/codex/v2/ThreadResumeP
 export class CodexClient implements Agent {
  connected=false;connectionId='';private ws?:WebSocket;private seq=0;
  private pending=new Map<number,{resolve:(v:Json)=>void;reject:(e:Error)=>void;timer:NodeJS.Timeout}>();
- private eventsEmitter=new EventEmitter();private connecting?:Promise<void>;
+ private freshThreads=new Set<string>();private eventsEmitter=new EventEmitter();private connecting?:Promise<void>;
  constructor(private config:Pick<Config,'socket'>){}
  onEvent(listener:(event:AgentEvent)=>void){this.eventsEmitter.on('event',listener);return ()=>{this.eventsEmitter.off('event',listener);};}
  async connect(){if(this.connected)return;if(this.connecting)return this.connecting;this.connecting=this.open();try{await this.connecting;}finally{this.connecting=undefined;}}
@@ -21,15 +21,16 @@ export class CodexClient implements Agent {
   try{await this.call('initialize',{clientInfo:{name:'qq_codex_bridge_v2',title:'QQ Codex Bridge',version:'2.0.0'},capabilities:{experimentalApi:true,requestAttestation:false}});ws.send(JSON.stringify({method:'initialized'}));this.connected=true;}
   catch(e){ws.close();throw e;}
  }
- private receive(raw:unknown){const m=object(raw);if(m.id!==undefined&&!m.method){const id=Number(m.id),p=this.pending.get(id);if(!p)return;clearTimeout(p.timer);this.pending.delete(id);if(m.error)p.reject(new Error(string(object(m.error).message)||'Codex RPC error'));else p.resolve(object(m.result));return;}
+ private receive(raw:unknown){const m=object(raw);if(m.id!==undefined&&!m.method){const id=Number(m.id),p=this.pending.get(id);if(!p)return;clearTimeout(p.timer);this.pending.delete(id);if(m.error)p.reject(new Error(string(object(m.error).message)||'Codex RPC error'));else {const result=object(m.result);p.resolve(result);}return;}
   if(typeof m.method==='string')this.eventsEmitter.emit('event',{method:m.method,params:object(m.params),...(typeof m.id==='number'||typeof m.id==='string'?{id:m.id}:{})} satisfies AgentEvent);
  }
- async call(method:string,params:unknown):Promise<Json>{const ws=this.ws;if(!ws||ws.readyState!==WebSocket.OPEN)throw new Error('Codex not connected');return new Promise((resolve,reject)=>{const id=++this.seq;const timer=setTimeout(()=>{this.pending.delete(id);reject(new Error('Codex RPC timeout: '+method));},20000);this.pending.set(id,{resolve,reject,timer});ws.send(JSON.stringify({id,method,params}));});}
+ async call(method:string,params:unknown):Promise<Json>{const result=await this.request(method,params);if(method==='thread/start'||method==='thread/fork'){const id=string(object(result.thread).id);if(id)this.freshThreads.add(id);}return result;}
+ private async request(method:string,params:unknown):Promise<Json>{const ws=this.ws;if(!ws||ws.readyState!==WebSocket.OPEN)throw new Error('Codex not connected');return new Promise((resolve,reject)=>{const id=++this.seq;const timer=setTimeout(()=>{this.pending.delete(id);reject(new Error('Codex RPC timeout: '+method));},20000);this.pending.set(id,{resolve,reject,timer});ws.send(JSON.stringify({id,method,params}));});}
  respond(id:string|number,result:unknown){if(!this.connected||!this.ws)throw new Error('Codex not connected');this.ws.send(JSON.stringify({id,result}));}
  readThread(id:string){return this.call('thread/read',{threadId:id,includeTurns:false}).then(r=>object(r.thread));}
- resume(id:string){const p:ThreadResumeParams={threadId:id,excludeTurns:true};return this.call('thread/resume',p).then(r=>object(r.thread));}
+ resume(id:string){if(this.freshThreads.has(id))return this.readThread(id);const p:ThreadResumeParams={threadId:id,excludeTurns:true};return this.call('thread/resume',p).then(r=>object(r.thread));}
  async submit(task:Task){
-  const params:TurnStartParams={threadId:task.threadId,clientUserMessageId:task.id,input:[{type:'text',text:task.prompt||task.text,text_elements:[]},...task.files.flatMap(f=>[...(f.kind==='image'?[f.path]:[]),...(f.images||[])]).map(path=>({type:'localImage' as const,path}))]};
+  const params:TurnStartParams={threadId:task.threadId,clientUserMessageId:task.id,...(task.model?{model:task.model}:{}),...(task.effort?{effort:task.effort}:{}),input:[{type:'text',text:task.prompt||task.text,text_elements:[]},...task.files.flatMap(f=>[...(f.kind==='image'?[f.path]:[]),...(f.images||[])]).map(path=>({type:'localImage' as const,path}))]};
   const result=await this.call('turn/start',params);const turn=object(result.turn);const id=string(turn.id);if(!id)throw new Error('Codex did not return turn id');return id;
  }
  async cancel(threadId:string,turnId:string){await this.call('turn/interrupt',{threadId,turnId});}

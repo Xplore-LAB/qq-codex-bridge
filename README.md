@@ -79,7 +79,19 @@ Audio/video transport is separate from understanding the content. STT/TTS is dis
 
 | Command | Action |
 | --- | --- |
-| `/help` | Show commands |
+| `/` or `/help` | Show commands |
+| `/new` | Create and immediately switch to an empty session |
+| `/resume [number or ID]` | List or select recent sessions |
+| `/fork` | Copy the current conversation and switch |
+| `/model [name or number] [effort]` | Select model for subsequent mobile turns |
+| `/compact` | Start context compaction |
+| `/stop` | Alias for `/cancel` |
+| `/steer text` | Add input to the active mobile turn |
+| `/answer nonce question answer` | Answer a genuine Codex question |
+| `/skills`, `/mcp`, `/apps` | Inspect available capabilities |
+| `/usage` | Query account rate-limit windows |
+| `/history` | Show recent conversation |
+| `/rename name` | Rename the current session |
 | `/status` | Connection, session, latest task, and voice configuration |
 | `/cancel [task-id]` | Cancel your queued task or its specific Codex turn |
 | `/retry [task-id]` | Retry a failed result delivery; do not rerun the task |
