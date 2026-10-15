@@ -1,27 +1,64 @@
+<div align="center">
+
 # QQ–Codex Bridge
 
-Use QQ private messages to work with an existing local Codex session and exchange images, documents, audio, and video.
+**在 QQ 里接着用电脑上的 Codex。**
 
-This is a standalone command-line tool built with TypeScript, the Tencent QQ SDK, SQLite, and the Codex App Server protocol. It does not require OpenClaw. It refuses to share a bot identity that is still enabled in an OpenClaw QQ channel, preventing two agents from independently executing the same message.
+通过 QQ 私聊继续本地 Codex 会话，查看回复、处理审批、收发文件。
 
-## Install
+**简体中文** · [English](README.en.md)
 
-Requirements: Linux or macOS, Node.js **24**, a signed-in Codex CLI with its app server running, and QQ bot credentials or QR onboarding access. Install FFmpeg for audio conversion and video frame extraction. The optional queue fallback also requires Python 3.
+[![Tests](https://github.com/Xplore-LAB/qq-codex-bridge/actions/workflows/test.yml/badge.svg)](https://github.com/Xplore-LAB/qq-codex-bridge/actions/workflows/test.yml)
+[![Node.js 24](https://img.shields.io/badge/Node.js-24-339933?logo=nodedotjs&logoColor=white)](package.json)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](src)
+
+[快速开始](#快速开始) · [常用命令](#常用命令) · [排障](docs/troubleshooting.md) · [反馈问题](https://github.com/Xplore-LAB/qq-codex-bridge/issues)
+
+</div>
+
+---
+
+电脑上任务还在跑，离开工位后也能用手机继续跟进。QQ–Codex Bridge 将 QQ 私聊接入已有的本地 Codex 会话，让对话、执行状态和文件交付连在一起。它是独立的 TypeScript 命令行工具，使用腾讯 QQ SDK、SQLite 和 Codex App Server 协议，无需安装 OpenClaw。
+
+## 可以做什么
+
+| 场景 | 能力 |
+| --- | --- |
+| 手机继续工作 | 接入已有会话，也可通过命令新建、恢复、分叉和切换会话 |
+| 跟进长任务 | 打字状态提示、可选原生流式回复；桌面忙碌时消息进入队列 |
+| 处理文件 | 接收图片、文档、语音和视频；发送生成的文件与图片 |
+| 控制执行 | 查看状态、取消任务、追加输入，转发真实审批和交互问题 |
+| 重启恢复 | SQLite 持久化任务与发送进度；失败交付可单独重试 |
+| 私人使用 | 一个机器人配对一个用户，只接受已配对用户的私聊 |
+
+语音识别和语音合成需要另行配置服务。视频可提取有限数量的帧；附件传输能力不等于模型已理解附件内容。原生流式、文件发送、审批按钮等受 QQ 账号权限影响。
+
+## 快速开始
+
+### 1. 准备环境
+
+- Linux 或 macOS，**Node.js 24**。
+- 已登录且运行中的 Codex App Server，以及一个已有的会话 ID。
+- 可绑定的 QQ 机器人或扫码接入权限。
+- 处理音视频时需要 FFmpeg；可选队列后端还需要 Python 3。
+
+当前主后端连接本地 Unix 控制套接字；仅安装 Codex CLI 不代表该接口已运行。协议类型来自 Codex CLI `0.162.1`，其他版本请用 `probe` 验证。原生 Windows 支持尚未验证。
+
+### 2. 从源码安装
 
 ```bash
 git clone https://github.com/Xplore-LAB/qq-codex-bridge.git
 cd qq-codex-bridge
 npm ci
-npm test
 npm link
 qq-codex-bridge --help
 ```
 
-Private repository access requires your normal GitHub authentication. This repository is not published to the public npm registry.
+`npm ci` 会编译项目。当前未发布 npm 包，请使用上述源码安装方式；私有仓库需要 GitHub 访问权限。
 
-## Configure an existing session
+### 3. 连接现有会话
 
-Copy the ID of the existing Codex session you want to continue. The tool does not silently create another user session.
+将 `YOUR_EXISTING_THREAD_ID` 替换为已有 Codex 会话的 ID：
 
 ```bash
 qq-codex-bridge init --thread YOUR_EXISTING_THREAD_ID
@@ -29,81 +66,49 @@ qq-codex-bridge check
 qq-codex-bridge probe
 ```
 
-`init` creates configuration and an empty task database. It does **not** contact QQ. `check` validates the local environment. `probe` reads the existing Codex session without submitting a prompt.
+`init` 创建本地配置，不连接 QQ。`check` 检查本地环境；`probe` 只读验证会话，预期返回 `connected: true` 和 `sameThread: true`。会话 ID 和套接字路径说明见[排障指南](docs/troubleshooting.md)。
 
-By default, data lives outside the installed package:
-
-| Data | Location |
-| --- | --- |
-| Configuration | `~/.config/qq-codex-bridge/config.json` |
-| Credentials | `~/.config/qq-codex-bridge/credentials.json` (mode 600) |
-| Task database | `~/.local/state/qq-codex-bridge/bridge.db` |
-| Media files | `~/.local/share/qq-codex-bridge/media/` |
-
-Set `QQ_BRIDGE_CONFIG_DIR` to isolate another installation. `init` also accepts `--state-dir`, `--media-dir`, `--socket`, `--app-id`, and `--owner`. `CODEX_HOME` controls the default Codex socket and fallback history database location. Existing configuration is not silently overwritten.
-
-## Bind and connect
-
-Finish local checks before connecting a robot. Use a dedicated QQ bot, or explicitly migrate its existing channel first.
+### 4. 扫码、配对、启动
 
 ```bash
 qq-codex-bridge bind
 ```
 
-Scan the QR code at the path printed by the command. When a new bot identity is bound, send the printed `/pair ...` command to that bot in a private chat. Binding writes credentials but **does not start the bridge**.
+打开终端输出路径对应的二维码图片，扫码绑定后，在 QQ 私聊机器人发送终端打印的 `/pair ...`。请保管好配对码，不要贴到公开 Issue。
 
 ```bash
 qq-codex-bridge auth-check
 qq-codex-bridge start
 ```
 
-The first unpaired account ignores messages except the matching pairing command. Once paired, only that user's private messages are accepted. Starting the bridge uses the existing Codex session's permissions; it does not disable approvals or weaken its sandbox.
+在 QQ 发送 `/help` 或普通消息即可使用。初次使用建议保持前台运行，确认收发正常后再配置[后台服务](docs/operations.md)。
 
-## Features
+## 常用命令
 
-- Receive text, images, documents, voice, and video attachments.
-- Pass images into Codex as image inputs; expose other downloaded files by local path.
-- Send local files back through explicit media tags, with message receipts.
-- Persist tasks, delivery progress, quote references, approvals, and reminders in SQLite.
-- Deduplicate incoming events; recover known running turns without resubmitting them.
-- Queue messages while the desktop session is busy, without automatically steering it.
-- Cancel a specific task and retry its failed result delivery independently.
-- Forward genuine Codex approvals using QQ buttons or scoped command fallbacks.
-- Show typing status while waiting, then optional native C2C streaming with append-only answer text.
-- Forward ordinary chat verbatim, without receipt chatter or repeated routing instructions.
-- Configure compatible STT/TTS providers and bounded video frame extraction.
-
-Audio/video transport is separate from understanding the content. STT/TTS is disabled until explicitly configured. QQ file permissions, voice encoding, native streaming, approval routing, and proactive-message windows require real-account testing. Local automated tests do not prove these platform permissions.
-
-## QQ commands
-
-| Command | Action |
+| QQ 私聊命令 | 用途 |
 | --- | --- |
-| `/` or `/help` | Show commands |
-| `/new` | Create and immediately switch to an empty session |
-| `/resume [number or ID]` | List or select recent sessions |
-| `/fork` | Copy the current conversation and switch |
-| `/model [name or number] [effort]` | Select model for subsequent mobile turns |
-| `/compact` | Start context compaction |
-| `/stop` | Alias for `/cancel` |
-| `/steer text` | Add input to the active mobile turn |
-| `/answer nonce question answer` | Answer a genuine Codex question |
-| `/skills`, `/mcp`, `/apps` | Inspect available capabilities |
-| `/usage` | Query account rate-limit windows |
-| `/history` | Show recent conversation |
-| `/rename name` | Rename the current session |
-| `/status` | Connection, session, latest task, and voice configuration |
-| `/cancel [task-id]` | Cancel your queued task or its specific Codex turn |
-| `/retry [task-id]` | Retry a failed result delivery; do not rerun the task |
-| `/session [thread-id]` | Show or select an existing session |
-| `/voice on\|off` | Toggle voice replies when TTS is configured |
-| `/remind 5m drink water` | Create a persistent reminder |
-| `/remind list` | List pending reminders |
-| `/remind cancel ID` | Cancel a reminder |
+| `/help` | 查看完整命令列表 |
+| `/status` | 连接、会话和最近任务状态 |
+| `/new`、`/resume`、`/fork` | 新建、恢复或分叉会话 |
+| `/session [ID]` | 查看或选择已有会话 |
+| `/model` | 查看模型；按提示选择模型和推理强度 |
+| `/usage` | 查看账号额度窗口 |
+| `/history`、`/compact` | 查看近期对话、压缩上下文 |
+| `/stop` 或 `/cancel [任务ID]` | 取消移动端任务 |
+| `/steer 内容` | 向正在执行的移动端任务追加输入 |
+| `/retry [任务ID]` | 重试失败的结果发送，不重复执行任务 |
+| `/answer nonce question answer` | 回复 Codex 发出的交互问题 |
+| `/skills`、`/mcp`、`/apps` | 查询可用能力 |
+| `/rename 名称` | 重命名当前会话 |
+| `/voice on`、`/voice off` | 启用或关闭已配置的语音回复 |
+| `/remind 5m 喝水` | 创建持久提醒 |
+| `/remind list`、`/remind cancel ID` | 查看或取消提醒 |
 
-## Sending artifacts
+QQ 消息输入框不提供命令自动补全。登录、密钥输入及部分权限交互仍需在电脑端完成；操作细节见[运行说明](docs/operations.md)。
 
-Ask Codex to return a file. Its final response can contain:
+## 发送文件与图片
+
+让 Codex 生成结果并通过以下显式标签返回文件：
 
 ```text
 <qqfile>/absolute/path/report.md</qqfile>
@@ -112,16 +117,37 @@ Ask Codex to return a file. Its final response can contain:
 <qqvoice>/absolute/path/reply.mp3</qqvoice>
 ```
 
-Only explicit tags upload files; a Markdown file link alone does not. Configure `sendRoots` for your workspace. Real paths, hidden files, keys, image signatures, attachment count, and file sizes are checked. The default limit is eight attachments per message and 50 MiB per file, subject to any lower platform limit.
+在配置中将工作目录加入 `sendRoots`。只有显式标签会触发上传，普通 Markdown 文件链接不会。默认每条消息最多 8 个附件、单文件 50 MiB，并受平台更低限制约束。
 
-## Development and checks
+## 配置与数据
+
+| 内容 | 默认位置 |
+| --- | --- |
+| 配置 | `~/.config/qq-codex-bridge/config.json` |
+| 机器人凭据 | `~/.config/qq-codex-bridge/credentials.json` |
+| 任务数据库 | `~/.local/state/qq-codex-bridge/bridge.db` |
+| 收发媒体 | `~/.local/share/qq-codex-bridge/media/` |
+
+通过 `QQ_BRIDGE_CONFIG_DIR` 隔离配置，初始化时可传入 `--socket`、`--state-dir` 和 `--media-dir`。凭据、数据库和媒体保存在安装目录之外。原生流式回复默认关闭；语音服务需要显式配置。
+
+- [配置参考](docs/configuration.md)：流式回复、发送目录、STT/TTS 和限制。
+- [运行维护](docs/operations.md)：后台服务、恢复、提醒和移动端命令。
+- [架构说明](docs/architecture.md)：消息处理、任务状态和审批边界。
+- [常见问题](docs/troubleshooting.md)：安装、连接、配对和文件发送排障。
+
+## 参与改进
+
+欢迎提交可复现的问题、文档修正和改进建议，见[贡献指南](CONTRIBUTING.md)。如果它对你有帮助，欢迎点一个 **Star**，让更多需要 QQ 远程使用 Codex 的人发现它。
 
 ```bash
-npm run build
 npm test
 npm pack --dry-run
 ```
 
-The tests use fake QQ delivery, temporary SQLite databases, a local mock speech provider, a local JSON-RPC server, and FFmpeg fixtures. They do not connect to a QQ robot. Runtime configuration, credentials, QR codes, media, databases, deployment snapshots, and logs are excluded from Git and the package.
+自动测试使用模拟 QQ 通道、临时数据库、本地 RPC/语音服务及 FFmpeg，不会连接真实机器人，也不能代替真实账号权限验证。
 
-The generated Codex protocol types were produced with Codex CLI `0.162.1`. The Unix-socket WebSocket adapter is version-sensitive: run `probe` after upgrading Codex. See [architecture](docs/architecture.md), [configuration](docs/configuration.md), and [operations](docs/operations.md).
+## 项目状态与许可
+
+当前面向个人自托管场景：一个机器人、一个配对用户、QQ 私聊。本地执行沿用原会话的审批和沙箱策略。主后端依赖版本敏感的 Codex 控制接口，升级后应重新运行 `probe`；跨服务不承诺严格的恰好一次执行或交付。
+
+原创代码目前保留所有权利，尚未授予开源使用许可，见 [LICENSE](LICENSE)。第三方组件及生成协议类型遵循各自条款，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。本项目独立维护，与腾讯、OpenAI 或 OpenClaw 无隶属关系。

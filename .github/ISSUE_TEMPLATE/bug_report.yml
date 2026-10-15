@@ -1,0 +1,30 @@
+name: Bug report / 问题反馈
+description: Report a reproducible problem / 提交可复现的问题
+body:
+  - type: markdown
+    attributes:
+      value: "Please redact secrets, pairing codes, private messages and signed URLs. 请勿提交凭据、配对码或私人消息。"
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment / 环境
+      description: OS, Node.js, Codex version, bridge version or commit; installation method.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce / 复现步骤
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior / 预期与实际表现
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Redacted logs / 脱敏日志
+      render: text

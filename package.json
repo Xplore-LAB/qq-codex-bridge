@@ -35,7 +35,7 @@
   "engines": {
     "node": ">=24 <25"
   },
-  "description": "A private QQ messaging bridge for an existing Codex session, with durable tasks and multimedia delivery.",
+  "description": "Control an existing local Codex session from QQ private chat: durable tasks, streaming replies, approvals, and multimedia delivery.",
   "bin": {
     "qq-codex-bridge": "bin/qq-codex-bridge.mjs"
   },
@@ -55,6 +55,22 @@
     "README.md",
     "docs/",
     "config.example.json",
-    "THIRD_PARTY_NOTICES.md"
+    "THIRD_PARTY_NOTICES.md",
+    "README.en.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md"
+  ],
+  "keywords": [
+    "qq",
+    "qq-bot",
+    "qqbot",
+    "codex",
+    "codex-cli",
+    "codex-app-server",
+    "ai-agent",
+    "chatbot",
+    "typescript",
+    "self-hosted",
+    "messaging-bridge"
   ]
 }
