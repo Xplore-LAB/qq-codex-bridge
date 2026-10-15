@@ -23,7 +23,7 @@ export class QQChannel implements Channel {
   this.bot.on('message',async(_ctx,msg)=>{
    if(msg.kind!=='c2c'||msg.senderIsBot)return;
    try{await this.onMessage?.(normalize(msg,config.accountId),msg);this.checkpoint();}
-   catch(e){log.error({event:'inbound_rejected',reason:errorMessage(e)});}
+   catch(e){log.error({event:'inbound_rejected',reason:errorMessage(e)});if(msg.senderId===config.owner){try{await this.sendText(msg.replyTarget,'消息处理失败：'+errorMessage(e));}catch(sendError){log.warn({event:'inbound_error_notice_failed',reason:errorMessage(sendError)});}}}
   });
   this.bot.on('interaction',async(_ctx,event)=>{
    const peer=event.user_openid||event.data.resolved.user_id||'';const data=event.data.resolved.button_data||'';

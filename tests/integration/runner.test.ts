@@ -41,3 +41,6 @@ test('ordinary chat is silent on admission and forwards only the original text',
 test('artifact instructions are injected only when the user requests an artifact',async()=>{
  const f=fixture();try{await f.runner.accept(message({text:'把指南文件发给我'}));await f.runner.tick();const prompt=f.agent.submitted[0]?.prompt||'';assert.match(prompt,/<qqfile>/);assert.doesNotMatch(prompt,/QQ任务|QQ 通信说明|附件材料/);}finally{f.store.close();}
 });
+
+test('stop prioritizes active work over later queued messages',async()=>{const f=fixture();try{const {task}=await f.runner.accept(message());await f.runner.tick();await f.runner.accept(message());await f.runner.cancel('owner');assert.deepEqual(f.agent.cancelled,[f.store.getTask(task.id)?.turnId]);assert.equal(f.store.tasks(['received']).length,1);}finally{f.store.close();}});
+test('long streamed prefix is not sent again when delivering the remaining text',async()=>{const f=fixture();try{const {task}=await f.runner.accept(message());task.reply='a'.repeat(13000);task.status='succeeded';f.store.saveTask(task);f.store.set('streamReceipt:'+task.id,{id:'stream-receipt',text:'a'.repeat(12000)});await f.runner.deliver(task);assert.equal(f.channel.sent.filter(s=>s.kind==='text').map(s=>s.text).join('').length,1000);assert.equal(f.store.getTask(task.id)?.status,'delivered');}finally{f.store.close();}});

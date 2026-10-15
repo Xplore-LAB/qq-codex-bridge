@@ -13,7 +13,7 @@ export interface MediaPort {receive(items:Incoming['attachments'],taskId:string)
 export interface ProcessingPort {prepare(file:Attachment):Promise<Attachment>;synthesize(text:string):Promise<string>;outboundVoice(path:string):Promise<string>}
 const active=['received','preparing','queued','submitting','running','waiting_approval'] as const;
 export class Runner {
- readonly questions:Questions;readonly approvals:ApprovalService;private progress:ReplyProgress;private busy=false;private eventChain=Promise.resolve();private early:AgentEvent[]=[];private lastPoll=0;private resumed=new Set<string>();
+ readonly questions:Questions;readonly approvals:ApprovalService;private progress:ReplyProgress;private busy=false;private eventChain=Promise.resolve();private phases=new Map<string,string>();private early:AgentEvent[]=[];private lastPoll=0;private resumed=new Set<string>();
  constructor(readonly config:Config,readonly store:Store,readonly agent:Agent,readonly channel:Channel,private media:MediaPort=new MediaStore(config),private processing:ProcessingPort=new MediaProcessor(config)){
   this.questions=new Questions(store,agent,channel);this.approvals=new ApprovalService(config,store,agent,channel);this.progress=new ReplyProgress(config,channel);
   agent.onEvent(event=>{this.eventChain=this.eventChain.then(()=>this.onEvent(event)).catch(e=>log.error({event:'agent_event_failed',reason:errorMessage(e)}));});
@@ -51,7 +51,7 @@ export class Runner {
    if(!this.agent.connected){await this.agent.connect();this.resumed.clear();}
    this.approvals.expire();
    for(const task of this.store.tasks(['running','waiting_approval'])){
-    if(Date.now()-task.createdAt>this.config.limits.taskTimeoutMs){task.status='uncertain';task.error='等待超时；任务可能仍在 Codex 执行，请在电脑端核对';this.store.saveTask(task);this.approvals.finish(task.id);await this.notify(task,task.error);continue;}
+    if(Date.now()-task.createdAt>this.config.limits.taskTimeoutMs){task.status='uncertain';task.error='等待超时；任务可能仍在 Codex 执行，请在电脑端核对';this.store.saveTask(task);this.approvals.finish(task.id);this.progress.cancel(task.id);await this.notify(task,task.error);continue;}
     if(Date.now()-this.lastPoll>4000&&task.turnId){try{if(!this.resumed.has(task.threadId)){await this.agent.resume(task.threadId);this.resumed.add(task.threadId);}const turn=await this.agent.turn(task.threadId,task.turnId);if(turn&&turn.status!=='inProgress')await this.finish(task,turn);}catch(e){log.warn({event:'turn_reconcile_failed',taskId:task.id,reason:errorMessage(e)});}}
    }
    if(Date.now()-this.lastPoll>4000)this.lastPoll=Date.now();
@@ -79,7 +79,8 @@ export class Runner {
   const task=this.store.tasks(['running','waiting_approval','submitting']).find(t=>t.threadId===threadId&&t.turnId===turnId);
   if(!task){if(this.store.tasks(['submitting']).some(t=>t.threadId===threadId)&&this.early.length<200)this.early.push(event);return;}
   if(event.id!==undefined){if(await this.questions.receive(event,task))return;await this.approvals.receive(event,task);return;}
-  if(event.method==='item/agentMessage/delta')await this.progress.delta(task,string(p.itemId),string(p.delta));
+  if(event.method==='item/started'){const item=object(p.item);if(item.type==='agentMessage')this.phases.set(string(item.id),string(item.phase));}
+  if(event.method==='item/agentMessage/delta'&&this.phases.get(string(p.itemId))!=='commentary')await this.progress.delta(task,string(p.itemId),string(p.delta));
   if(event.method==='item/completed'){const item=object(p.item);if(item.type==='agentMessage'&&item.phase==='final_answer'){task.reply=string(item.text);this.store.saveTask(task);}}
   if(event.method==='turn/completed')await this.finish(task,object(p.turn));
  }
@@ -88,6 +89,7 @@ export class Runner {
   const items=Array.isArray(turn.items)?turn.items.map(object):[];const text=items.filter(i=>i.type==='agentMessage'&&i.phase==='final_answer').map(i=>string(i.text)).join('\n');
   task.reply=text||task.reply;
   this.approvals.finish(task.id);
+  this.phases.clear();
   if(turn.status==='completed'){
    if(!task.reply){task.reply='任务已完成，但未获取到最终文字回复，请在电脑端查看。';}
    task.status='succeeded';this.store.saveTask(task);
@@ -100,7 +102,10 @@ export class Runner {
    if(!this.store.deliveries(task.id).length){
     const parsed=splitReply(task.reply||'');if(parsed.files.length>this.config.limits.attachments)throw new Error('回复附件数量超限');const parts:Delivery[]=[];
     const streamed=this.store.get<{id:string;text:string}>('streamReceipt:'+task.id);
-    for(let i=0;i<parsed.text.length;i+=1600)parts.push({id:randomUUID(),taskId:task.id,seq:parts.length,kind:'text',content:parsed.text.slice(i,i+1600),state:streamed&&streamed.text===parsed.text?'sent':'pending',receipt:streamed?.id});
+    const prefix=streamed&&parsed.text.startsWith(streamed.text)?streamed:undefined;
+    if(prefix?.text)parts.push({id:randomUUID(),taskId:task.id,seq:parts.length,kind:'text',content:prefix.text,state:'sent',receipt:prefix.id});
+    const remaining=parsed.text.slice(prefix?.text.length||0);
+    for(let i=0;i<remaining.length;i+=1600)parts.push({id:randomUUID(),taskId:task.id,seq:parts.length,kind:'text',content:remaining.slice(i,i+1600),state:'pending'});
     for(const file of parsed.files){let path=await this.media.stage(file.path);if(file.kind==='voice')path=await this.processing.outboundVoice(path);parts.push({id:randomUUID(),taskId:task.id,seq:parts.length,kind:file.kind,content:path,name:basename(file.path),state:'pending'});}
     if(task.voiceReply&&parsed.text){try{const path=await this.processing.synthesize(parsed.text);parts.push({id:randomUUID(),taskId:task.id,seq:parts.length,kind:'voice',content:path,state:'pending'});}catch(e){log.warn({event:'tts_fallback_text',taskId:task.id,reason:errorMessage(e)});}}
     this.store.stageDeliveries(task,parts);
@@ -114,7 +119,7 @@ export class Runner {
    task.status='delivered';delete task.error;this.store.saveTask(task);log.info({event:'task_delivered',taskId:task.id});
   }catch(e){task.status='delivery_failed';task.error=errorMessage(e);this.store.saveTask(task);log.error({event:'delivery_failed',taskId:task.id,reason:task.error});}
  }
- async cancel(peer:string,id?:string){const task=this.select(peer,id,['received','queued','running','waiting_approval']);if(!task)throw new Error('没有可取消的任务');
+ async cancel(peer:string,id?:string){const task=this.select(peer,id,['running','waiting_approval'])||this.select(peer,id,['received','queued']);if(!task)throw new Error('没有可取消的任务');
   if(task.turnId){await this.agent.cancel(task.threadId,task.turnId);}else{task.status='cancelled';this.store.saveTask(task);}this.progress.cancel(task.id);return task;
  }
  retry(peer:string,id?:string){const task=this.select(peer,id,['delivery_failed']);if(!task)throw new Error('没有可重试投递的任务');if(this.store.deliveries(task.id).some(d=>d.state==='uncertain'))throw new Error('送达状态不确定，请先在 QQ 核对，不自动重复发送');task.status='succeeded';delete task.error;this.store.saveTask(task);return task;}

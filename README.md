@@ -69,7 +69,7 @@ The first unpaired account ignores messages except the matching pairing command.
 - Queue messages while the desktop session is busy, without automatically steering it.
 - Cancel a specific task and retry its failed result delivery independently.
 - Forward genuine Codex approvals using QQ buttons or scoped command fallbacks.
-- Show typing status and optional native C2C streaming with an in-place loading indicator.
+- Show typing status while waiting, then optional native C2C streaming with append-only answer text.
 - Forward ordinary chat verbatim, without receipt chatter or repeated routing instructions.
 - Configure compatible STT/TTS providers and bounded video frame extraction.
 
