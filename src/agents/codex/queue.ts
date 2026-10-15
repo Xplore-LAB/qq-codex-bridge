@@ -19,7 +19,7 @@ export class QueueAgent implements Agent {
  onEvent(_listener:(event:AgentEvent)=>void){return ()=>{};}
  respond(){throw new Error('降级模式不能处理 QQ 审批');}
  async cancel(){throw new Error('降级模式不能安全取消已提交的 Codex 任务，请在电脑端处理');}
- async submit(task:Task){task.history=await rolloutPath(task.threadId);task.offset=statSync(task.history).size;this.store.saveTask(task);const args=['queue','--thread',task.threadId,'--message',task.prompt||task.text];for(const f of task.files){for(const image of [...(f.kind==='image'?[f.path]:[]),...(f.images||[])])args.push('--image',image);}await exec('codex',args,{timeout:30000,maxBuffer:1048576});return task.id;}
+ async submit(task:Task){task.history=await rolloutPath(task.threadId);task.offset=statSync(task.history).size;this.store.saveTask(task);const args=['queue','--thread',task.threadId,'--message','[QQ任务 '+task.id+']\n'+(task.prompt||task.text)];for(const f of task.files){for(const image of [...(f.kind==='image'?[f.path]:[]),...(f.images||[])])args.push('--image',image);}await exec('codex',args,{timeout:30000,maxBuffer:1048576});return task.id;}
  async turn(_threadId:string,id:string):Promise<Json|undefined>{
   const task=this.store.getTask(id);if(!task)return undefined;
   if(!task.history||!existsSync(task.history))task.history=await rolloutPath(task.threadId);

@@ -69,7 +69,8 @@ The first unpaired account ignores messages except the matching pairing command.
 - Queue messages while the desktop session is busy, without automatically steering it.
 - Cancel a specific task and retry its failed result delivery independently.
 - Forward genuine Codex approvals using QQ buttons or scoped command fallbacks.
-- Show typing status; optionally enable native C2C streaming.
+- Show typing status and optional native C2C streaming with an in-place loading indicator.
+- Forward ordinary chat verbatim, without receipt chatter or repeated routing instructions.
 - Configure compatible STT/TTS providers and bounded video frame extraction.
 
 Audio/video transport is separate from understanding the content. STT/TTS is disabled until explicitly configured. QQ file permissions, voice encoding, native streaming, approval routing, and proactive-message windows require real-account testing. Local automated tests do not prove these platform permissions.

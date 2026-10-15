@@ -34,3 +34,10 @@ test('expired approvals decline, never accept',async()=>{
 test('reminders and commands deduplicate and refuse unauthorized users',async()=>{
  const f=fixture();try{const cmd=new Commands(f.cfg,f.store,f.runner,f.channel);const m=message({text:'/remind 10s 喝水'});await cmd.handle(m);await cmd.handle(m);assert.equal(f.store.reminders().length,1);await assert.rejects(cmd.handle(message({peerId:'intruder',text:'/status'})),/未授权/);const reminder=f.store.reminders()[0]!;reminder.dueAt=Date.now()-1;f.store.saveReminder(reminder);await cmd.reminders();await cmd.reminders();assert.equal(f.channel.sent.filter(s=>s.text==='提醒：喝水').length,1);}finally{f.store.close();}
 });
+
+test('ordinary chat is silent on admission and forwards only the original text',async()=>{
+ const f=fixture();try{await f.runner.accept(message({text:'你好'}));assert.equal(f.channel.sent.length,0);await f.runner.tick();assert.equal(f.agent.submitted[0]?.prompt,'你好');assert.equal(f.agent.submitted[0]?.text,'你好');}finally{f.store.close();}
+});
+test('artifact instructions are injected only when the user requests an artifact',async()=>{
+ const f=fixture();try{await f.runner.accept(message({text:'把指南文件发给我'}));await f.runner.tick();const prompt=f.agent.submitted[0]?.prompt||'';assert.match(prompt,/<qqfile>/);assert.doesNotMatch(prompt,/QQ任务|QQ 通信说明|附件材料/);}finally{f.store.close();}
+});
