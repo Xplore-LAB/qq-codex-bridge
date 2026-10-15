@@ -16,7 +16,7 @@ state.json
 *.sock
 bind-*
 pair-command.txt
-media/
+/media/
 releases/
 current
 coverage/
